@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/timeb.h>
 #include <openssl/md5.h>
+#include <mpi.h>
 
 #include "bf.h"
 
@@ -20,13 +21,13 @@ int main(int argc, char** argv) {
 	struct timeb tav, tap;
 	double te;
 
-	memset(monMD5, 0, sizeof(monMD5));
-	memset(word, 0, sizeof(word));
-
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s string-to-hash taille-du-prefixe\n", argv[0]);
 		exit(1);
 	}
+	memset(monMD5, 0, sizeof(monMD5));
+	memset(word, 0, sizeof(word));
+
 	sprintf(word, "%s", argv[1]);
 	taillePrefixe = atoi(argv[2]);
 
@@ -45,5 +46,5 @@ int main(int argc, char** argv) {
 	te = (double) ((tap.time * 1000 + tap.millitm) - (tav.time * 1000 + tav.millitm)) / 1000;
 	printf("Temps d'exécution : %f\n", te);
 
-	return 0;
+	return EXIT_SUCCESS;
 }

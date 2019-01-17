@@ -3,7 +3,12 @@ project(Code_Base C)
 
 set(CMAKE_C_STANDARD 99)
 
+find_package(MPI REQUIRED)
+find_package(OpenMP REQUIRED)
+find_package(OpenSSL REQUIRED)
+
 include_directories(.)
+include_directories(${MPI_C_INCLUDE_DIRS})
 
 set(OPTIONS_FLAGS
 		PRIVATE -Wall)
@@ -12,7 +17,8 @@ if (${CMAKE_C_COMPILER_ID} STREQUAL "Intel")
 	message("Intel compiler is used.")
 	set(OPTIONS_FLAGS
 			${OPTIONS_FLAGS}
-			PRIVATE -Wextra-token)
+			PRIVATE -Wextra-tokens)
+	set(CMAKE_C_FLAGS_RELEASE "-Ofast -DNDEBUG")
 elseif (${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
 	message("GNU compiler is used.")
 	set(OPTIONS_FLAGS
@@ -24,21 +30,8 @@ endif ()
 set(LINKER_OPTIONS
 		PRIVATE -Wl,--as-needed)
 
-set(LINKER_FLAGS)
-
-find_package(OpenMP REQUIRED)
-find_package(OpenSSL REQUIRED)
-
-if (${OpenMP_FOUND})
-	message("OpenMP found, compiler : ${OpenMP_C_FLAGS}, linker : ${OpenMP_C_LIBRARIES}")
-	set(OPTIONS_FLAGS ${OPTIONS_FLAGS} ${OpenMP_C_FLAGS})
-	set(LINKER_FLAGS ${LINKER_FLAGS} ${OpenMP_C_LIBRARIES})
-endif ()
-
-if (${OPENSSL_FOUND})
-	message("OpenSSL found, link flag : ${OPENSSL_CRYPTO_LIBRARY}")
-	set(LINKER_FLAGS ${LINKER_FLAGS} ${OPENSSL_CRYPTO_LIBRARY})
-endif ()
+set(OPTIONS_FLAGS ${OPTIONS_FLAGS} ${OpenMP_C_FLAGS} ${MPI_C_COMPILE_OPTIONS})
+set(LINKER_FLAGS ${OpenMP_C_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${MPI_C_LINK_FLAGS} ${MPI_C_LIBRARIES})
 
 set(SOURCES
 		bf.c
