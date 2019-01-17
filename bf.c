@@ -5,12 +5,15 @@
 /* Les fonctions utiles a l'enumeration complete                             */
 /*****************************************************************************/
 
+#include "bf.h"
 #include <stdio.h>
 #include <string.h>
-#include <omp.h>
+//#include <omp.h>
 #include <openssl/md5.h>
-#include "bf.h"
+#include <mpi.h>
+#include <limits.h>
 
+#define MASTER_NODE 0
 
 void initTabSymb(struct bf* e) {
 	int i, index;
@@ -64,7 +67,7 @@ void decode(struct bf* e, int c, int l, char word[]) {
 
 bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 	bool match;
-	int index, j, nbPrefixe, prefixe;
+	int index, j, nbPrefixe, prefixe, tag = 0;
 	struct bf env;
 
 	// l'initialisation de la table des symboles
@@ -78,24 +81,51 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 	nbPrefixe = (int) pow(env.nbSymbole, p);
 	printf("\nLe nombre de prefixe : \t %d\n", nbPrefixe);
 	match = false;
+	//todo : conversion vers MPI, modèle : client-serveur
 
-#pragma omp parallel shared(env, match, motGagnant) private(index)
-	{
-		char word[64]; // le mot local sur lequel travailler
-/*#pragma omp single
-		printf("Nombre de threads : \t %d\n", omp_get_num_threads());
-		index = omp_get_thread_num();*/
-#pragma omp for
-		for (prefixe = 0; prefixe < nbPrefixe; prefixe++) {
-			decode(&env, prefixe, p, word);
-			if (!match) {
-				if (bruteForcePrefixe(&env, p, (int) l, word, monMD5)) {
-					match = true;
-					// sprintf(motGagnant, "%s",word);
-				}
+	char word[64]; // le mot local sur lequel travailler
+
+	if (rank == MASTER_NODE) {
+		int val = INT_MAX;
+		prefixe = 0;
+
+		while (prefixe != nbPrefixe && !match) {
+			MPI_Send((void*) &prefixe, 1, MPI_INT, prefixe + 1, tag, MPI_COMM_WORLD);
+			++prefixe; //Je sais pas comment faire le reste, snif TwT
+			if (((prefixe - 1) % sizeMPI) == 0) { //Tous les processus sont occupés, on attend une réponse.
+				MPI_Recv((void*) &match, 1, MPI_C_BOOL, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
+
+		//MPI_Send((void*) &prefixe, 1, MPI_INT, prefixe + 1, tag, MPI_COMM_WORLD);
+
+	} else {
+		MPI_Recv((void*) &prefixe, 1, MPI_INT, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		decode(&env, prefixe, p, word);
+		if (!match) {
+			if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
+				match = true;
+				MPI_Send((void*) &match, 1, MPI_C_BOOL, MASTER_NODE, tag, MPI_COMM_WORLD);
 			}
 		}
 	}
+/*#pragma omp parallel shared(env, match, motGagnant) private(index)
+	{*/
+	//char word[64]; // le mot local sur lequel travailler
+/*#pragma omp single
+		printf("Nombre de threads : \t %d\n", omp_get_num_threads());
+		index = omp_get_thread_num();*/
+//#pragma omp for
+	/*for (prefixe = 0; prefixe < nbPrefixe; prefixe++) {
+		decode(&env, prefixe, p, word);
+		if (!match) {
+			if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
+				match = true;
+				// sprintf(motGagnant, "%s",word);
+			}
+		}
+	}*/
+	//}
 	return match;
 }
 
@@ -127,7 +157,7 @@ bool bruteForcePrefixe(struct bf* e, int p, int l, char word[], unsigned char mo
 		if (!match) {
 			// on teste le mot courant
 			// on hash le code
-			MD5(word, strlen(word), courantMD5);
+			MD5((unsigned char*) word, strlen(word), courantMD5);
 			match = true;
 			i = 0;
 			while (match && i < MD5_DIGEST_LENGTH) match = (monMD5[i] == courantMD5[i++]);

@@ -8,11 +8,13 @@
 
 #include "bf.h"
 
+int rank, sizeMPI;
+
 int main(int argc, char** argv) {
 	unsigned char monMD5[MD5_DIGEST_LENGTH];
 	int i = 0;
-	int j = 0;
-	int _a = 1;
+	//int j = 0;
+	//int _a = 1;
 	char word[64];
 	char hex[129]; // note : 128 ne passe pas... ptet a cause du caractere de fin dans l'argv.. i don't know
 
@@ -25,6 +27,10 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "usage: %s string-to-hash taille-du-prefixe\n", argv[0]);
 		exit(1);
 	}
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &sizeMPI);
+
 	memset(monMD5, 0, sizeof(monMD5));
 	memset(word, 0, sizeof(word));
 
@@ -32,7 +38,7 @@ int main(int argc, char** argv) {
 	taillePrefixe = atoi(argv[2]);
 
 	// on hash le code
-	MD5(word, strlen(word), monMD5);
+	MD5((unsigned char*) word, strlen(word), monMD5);
 
 	ftime(&tav);
 	if (bruteForce(taillePrefixe, (int) strlen(word), word, monMD5)) {
