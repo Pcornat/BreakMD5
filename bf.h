@@ -44,7 +44,7 @@ void decode(struct bf* e, int c, int l, char word[]);
  * @param monMD5
  * @return
  */
-bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5);
+bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5);
 
 /**
  *

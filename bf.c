@@ -65,7 +65,7 @@ void decode(struct bf* e, int c, int l, char word[]) {
 	//printf("%s\n",word);
 }
 
-bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
+bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5) {
 	bool match;
 	int index, j, nbPrefixe, prefixe, tag = 0;
 	struct bf env;
@@ -83,7 +83,7 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 	match = false;
 	//todo : conversion vers MPI, modèle : client-serveur
 
-	char word[64]; // le mot local sur lequel travailler
+	char word[l]; // le mot local sur lequel travailler
 
 	if (rank == MASTER_NODE) {
 		int val = INT_MAX;
@@ -94,6 +94,7 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 			++prefixe; //Je sais pas comment faire le reste, snif TwT
 			if (((prefixe - 1) % sizeMPI) == 0) { //Tous les processus sont occupés, on attend une réponse.
 				MPI_Recv((void*) &match, 1, MPI_C_BOOL, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv((void*) motGagnant, l, MPI_CHAR, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 		}
 
@@ -106,6 +107,7 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 			if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
 				match = true;
 				MPI_Send((void*) &match, 1, MPI_C_BOOL, MASTER_NODE, tag, MPI_COMM_WORLD);
+				MPI_Send((void*) word, sizeof(word), MPI_CHAR, MASTER_NODE, tag, MPI_COMM_WORLD);
 			}
 		}
 	}
@@ -140,43 +142,57 @@ bool bruteForcePrefixe(struct bf* e, int p, int l, char word[], unsigned char mo
 	// pour le hachage
 	unsigned char courantMD5[MD5_DIGEST_LENGTH];
 
-	lc = l - 1; // la longueur courante du mot est egale a p
-	lmin = l - 1; // on a pas ete plus loin que
+#pragma omp sections
+	{
+#pragma omp section
+		{
+			lc = l - 1; // la longueur courante du mot est egale a p
+			lmin = l - 1; // on a pas ete plus loin que
 
-	// position dans la la table des symboles pour chaque symbole du mot
-	pos[p - 1] = 0; // cas particulier du dernier tour
-	for (i = p; i < l; ++i) {
-		pos[i] = 0;
-		word[i] = e->tabSymbole[0];
-	}
-	word[l] = '\0';
-	// il y aura nbTest a realiser sauf pour un prefixe qui conduit a la solution
-	nbTest = (int) pow(e->nbSymbole, l - p);
-	// printf("bf : premier mot = %s, nbTest=%d\n",word,nbTest);
-	for (tour = 0; tour < nbTest; ++tour) {
-		if (!match) {
-			// on teste le mot courant
-			// on hash le code
-			MD5((unsigned char*) word, strlen(word), courantMD5);
-			match = true;
-			i = 0;
-			while (match && i < MD5_DIGEST_LENGTH) match = (monMD5[i] == courantMD5[i++]);
-			if (!match) {
-				// on passe au mot suivant
-				if (++pos[lc] == e->nbSymbole) {
-					// on change de position dans le mot
-					word[lc] = e->tabSymbole[0];
-					pos[lc--] = 0;
-					// de combien de lettres on decale a gauche ?
-					while (++pos[lc] == e->nbSymbole) {
-						word[lc] = e->tabSymbole[0];
-						pos[lc--] = 0;
-					}
-					if (lc < lmin) lmin = lc;
-					word[lc] = e->tabSymbole[pos[lc]];
-					lc = l - 1;
-				} else word[lc] = e->tabSymbole[pos[lc]];
+			// position dans la la table des symboles pour chaque symbole du mot
+			pos[p - 1] = 0; // cas particulier du dernier tour
+			for (i = p; i < l; ++i) {
+				pos[i] = 0;
+				word[i] = e->tabSymbole[0];
 			}
+			word[l] = '\0';
+			// il y aura nbTest a realiser sauf pour un prefixe qui conduit a la solution
+			nbTest = (int) pow(e->nbSymbole, l - p);
+			// printf("bf : premier mot = %s, nbTest=%d\n",word,nbTest);
+			for (tour = 0; tour < nbTest; ++tour) {
+				if (!match) {
+					// on teste le mot courant
+					// on hash le code
+					MD5((unsigned char*) word, strlen(word), courantMD5);
+					match = true;
+					i = 0;
+					while (match && i < MD5_DIGEST_LENGTH)
+						match = (monMD5[i] == courantMD5[i++]);
+					if (!match) {
+						// on passe au mot suivant
+						if (++pos[lc] == e->nbSymbole) {
+							// on change de position dans le mot
+							word[lc] = e->tabSymbole[0];
+							pos[lc--] = 0;
+							// de combien de lettres on decale a gauche ?
+							while (++pos[lc] == e->nbSymbole) {
+								word[lc] = e->tabSymbole[0];
+								pos[lc--] = 0;
+							}
+							if (lc < lmin)
+								lmin = lc;
+							word[lc] = e->tabSymbole[pos[lc]];
+							lc = l - 1;
+						} else
+							word[lc] = e->tabSymbole[pos[lc]];
+					}
+				}
+			}
+		}
+
+#pragma omp section
+		{
+
 		}
 	}
 	// printf("Sortie de bf\n");
