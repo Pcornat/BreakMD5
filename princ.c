@@ -51,8 +51,8 @@ int main(int argc, char** argv) {
 			}
 			printf("\n");
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
 	}
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0) {
 		ftime(&tap);

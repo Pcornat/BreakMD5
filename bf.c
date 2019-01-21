@@ -67,7 +67,7 @@ void decode(struct bf* e, int c, int l, char word[]) {
 
 bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5) {
 	bool match;
-	int32_t /*index,*/ j, nbPrefixe, prefixe, tag = INT32_MAX;
+	int32_t index = 1, j, nbPrefixe, prefixe, tag = INT32_MAX;
 	struct bf env;
 
 	// l'initialisation de la table des symboles
@@ -87,27 +87,43 @@ bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5) {
 	if (rank == MASTER_NODE) {
 		prefixe = 0;
 		while (prefixe < nbPrefixe || !match) {
-			MPI_Send((void*) &prefixe, 1, MPI_INT, prefixe + 1, tag, MPI_COMM_WORLD);
+			MPI_Send((void*) &prefixe, 1, MPI_INT32_T, index, tag, MPI_COMM_WORLD);
 			++prefixe;
+			++index;
+			if (index == sizeMPI) {
+				while (index != 1) {
+					MPI_Recv((void*) &match, 1, MPI_C_BOOL, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					--index;
+				}
+			}
+			if (match) {
+				int32_t value = INT_MAX;
+				MPI_Send((void*) &value, 1, MPI_INT32_T, MASTER_NODE, tag, MPI_COMM_WORLD);
+			}
 		}
-
+		MPI_Recv((void*) word, sizeof(word), MPI_CHAR, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		//MPI_Send((void*) &prefixe, 1, MPI_INT, prefixe + 1, tag, MPI_COMM_WORLD);
 
 	} else {
 		while (!match) {
-			MPI_Recv((void*) &prefixe, 1, MPI_INT, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv((void*) &prefixe, 1, MPI_INT32_T, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			if (prefixe == INT_MAX) {
+				return match;
+			}
 			decode(&env, prefixe, p, word);
 			if (!match) {
 				if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
 					match = true;
-					MPI_Send((void*) &match, 1, MPI_C_BOOL, MASTER_NODE, tag, MPI_COMM_WORLD);
+				}
+				MPI_Send((void*) &match, 1, MPI_C_BOOL, MASTER_NODE, tag, MPI_COMM_WORLD);
+				if (match) {
 					MPI_Send((void*) word, sizeof(word), MPI_CHAR, MASTER_NODE, tag, MPI_COMM_WORLD);
 				}
 			}
 		}
 	}
-/*
-#pragma omp parallel shared(env, match, motGagnant) private(index)
+
+/*#pragma omp parallel shared(env, match, motGagnant) private(index)
 	{
 	char word[64]; // le mot local sur lequel travailler
 #pragma omp single
@@ -119,12 +135,14 @@ bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5) {
 		if (!match) {
 			if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
 				match = true;
-				// sprintf(motGagnant, "%s",word);
+				sprintf(motGagnant, "%s",word);
 			}
 		}
 	}
 	}
 */
+
+	sprintf(motGagnant, "%s", word);
 	return match;
 }
 
