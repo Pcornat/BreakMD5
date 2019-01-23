@@ -11,12 +11,10 @@
 int main(int argc, char** argv) {
 	unsigned char monMD5[MD5_DIGEST_LENGTH];
 	int i = 0;
-	int j = 0;
-	int _a = 1;
 	char word[64];
 	char hex[129]; // note : 128 ne passe pas... ptet a cause du caractere de fin dans l'argv.. i don't know
 
-	int taillePrefixe;
+	uint32_t taillePrefixe;
 	// pour le temps
 	struct timeb tav, tap;
 	double te;
@@ -29,15 +27,15 @@ int main(int argc, char** argv) {
 	memset(word, 0, sizeof(word));
 
 	sprintf(word, "%s", argv[1]);
-	taillePrefixe = atoi(argv[2]);
+	taillePrefixe = (uint32_t) atoi(argv[2]);
 
 	// on hash le code
-	MD5(word, strlen(word), monMD5);
+	MD5((unsigned char*) word, strlen(word), monMD5);
 
 	ftime(&tav);
-	if (bruteForce(taillePrefixe, (int) strlen(word), word, monMD5)) {
+	if (bruteForce(taillePrefixe, strlen(word), word, monMD5)) {
 		printf("Gagne : %s\n", word);
-		for (i = 0; i < 16; i++) {
+		for (i = 0; i < MD5_DIGEST_LENGTH; i++) {
 			printf("%02x", (unsigned int) monMD5[i]);
 		}
 		printf("\n");

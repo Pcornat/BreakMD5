@@ -1,5 +1,5 @@
 SHELL = /bin/sh
-CC = icc -O3 -openmp
+CC = icc -Ofast -qopenmp
 EXEC = princ
 SRC = $(EXEC).c
 

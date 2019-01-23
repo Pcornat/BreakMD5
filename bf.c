@@ -12,7 +12,7 @@
 #include "bf.h"
 
 
-void initTabSymb(struct bf* e) {
+void initTabSymb(bf* e) {
 	int i, index;
 	e->nbSymbole = 62;
 	index = 0;
@@ -51,7 +51,7 @@ void initTabSymb(struct bf* e) {
 	e->tabSymbole[e->nbSymbole++] = '_';
 }
 
-void decode(struct bf* e, int c, int l, char word[]) {
+void decode(bf* e, int c, int l, char* word) {
 	int i, val;
 	val = c;
 	for (i = 0; i < l; i++) {
@@ -62,14 +62,14 @@ void decode(struct bf* e, int c, int l, char word[]) {
 	//printf("%s\n",word);
 }
 
-bool bruteForce(uint32_t p, uint32_t l, char* motGagnant, unsigned char* monMD5) {
+bool bruteForce(uint32_t p, size_t l, char* motGagnant, unsigned char* monMD5) {
 	bool match;
 	uint32_t j, nbPrefixe, prefixe;
-	struct bf env;
+	bf env;
 
 	// l'initialisation de la table des symboles
 	initTabSymb(&env);
-	printf("longueur du mot : %d, longueur du prefixe %d\n", l, p);
+	printf("longueur du mot : %zu, longueur du prefixe %d\n", l, p);
 	printf("Ensemble des symboles (%d) :\n", env.nbSymbole);
 	for (j = 0; j < env.nbSymbole; j++) printf("%c", env.tabSymbole[j]);
 	printf("\n");
@@ -86,7 +86,7 @@ bool bruteForce(uint32_t p, uint32_t l, char* motGagnant, unsigned char* monMD5)
 		printf("Nombre de threads : \t %d\n", omp_get_num_threads());
 		index = omp_get_thread_num();*/
 #pragma omp for
-		for (prefixe = 0; prefixe < nbPrefixe; prefixe++) {
+		for (prefixe = 0; prefixe < nbPrefixe; ++prefixe) {
 			decode(&env, prefixe, p, word);
 			if (!match) {
 				if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
@@ -99,14 +99,14 @@ bool bruteForce(uint32_t p, uint32_t l, char* motGagnant, unsigned char* monMD5)
 	return match;
 }
 
-bool bruteForcePrefixe(struct bf* e, int p, int l, char word[], unsigned char monMD5[]) {
+bool bruteForcePrefixe(bf* e, uint32_t p, size_t l, char* word, unsigned char* monMD5) {
 	// p designe la position de depart dans le mot
 	// word[0..p-1] contient le prefixe
 	// l designe la longueur totale du mot a construire
 	// monMD5 contient le hachage a trouver
 	bool match = false;
-	int pos[LONGMAXMOT], lmin, lc, i, tour = 0, nbTest;
-
+	uint32_t pos[LONGMAXMOT], i, tour = 0, nbTest;
+	size_t lmin, lc;
 	// pour le hachage
 	unsigned char courantMD5[MD5_DIGEST_LENGTH];
 
@@ -121,13 +121,13 @@ bool bruteForcePrefixe(struct bf* e, int p, int l, char word[], unsigned char mo
 	}
 	word[l] = '\0';
 	// il y aura nbTest a realiser sauf pour un prefixe qui conduit a la solution
-	nbTest = (int) pow(e->nbSymbole, l - p);
+	nbTest = (uint32_t) pow(e->nbSymbole, l - p);
 	// printf("bf : premier mot = %s, nbTest=%d\n",word,nbTest);
 	for (tour = 0; tour < nbTest; ++tour) {
 		if (!match) {
 			// on teste le mot courant
 			// on hash le code
-			MD5(word, strlen(word), courantMD5);
+			MD5((unsigned char*) word, strlen(word), courantMD5);
 			match = true;
 			i = 0;
 			while (match && i < MD5_DIGEST_LENGTH) match = (monMD5[i] == courantMD5[i++]);

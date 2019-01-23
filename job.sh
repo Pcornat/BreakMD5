@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH	--comment "ProgParallele"
-#SBATCH	-J "BreakMD5"
+#SBATCH	-J "CasseMD5"
 
 #SBATCH --error=job.%J.err
 #SBATCH	--output=job.%J.out
@@ -16,3 +16,4 @@
 #SBATCH	--mail-type=ALL,TIME_LIMIT_50,TIME_LIMIT_80
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+./prog Chps7 2
