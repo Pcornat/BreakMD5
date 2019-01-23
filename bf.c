@@ -66,59 +66,72 @@ void decode(struct bf* e, int c, int l, char word[]) {
 }
 
 bool bruteForce(int p, int l, char motGagnant[], unsigned char* monMD5) {
-	bool match;
+	bool match, temp = false;
 	int32_t index = 1, j, nbPrefixe, prefixe, tag = INT32_MAX;
+	MPI_Status status, tempStat;
 	struct bf env;
 
 	// l'initialisation de la table des symboles
 	initTabSymb(&env);
-	printf("longueur du mot : %d, longueur du prefixe %d\n", l, p);
-	printf("Ensemble des symboles (%d) :\n", env.nbSymbole);
-	for (j = 0; j < env.nbSymbole; ++j) printf("%c", env.tabSymbole[j]);
-	printf("\n");
+	if(rank == 0) {
+		printf("longueur du mot : %d, longueur du prefixe %d\n", l, p);
+		printf("Ensemble des symboles (%d) :\n", env.nbSymbole);
+		for (j = 0; j < env.nbSymbole; ++j) printf("%c", env.tabSymbole[j]);
+		printf("\n");
+	}
 
 	// on commence par calculer le nombre de prefixe
 	nbPrefixe = (int) pow(env.nbSymbole, p);
-	printf("\nLe nombre de prefixe : \t %d\n", nbPrefixe);
+	if(rank == 0)
+		printf("\nLe nombre de prefixe : \t %d\n", nbPrefixe);
 	match = false;
 
 	char word[l]; // le mot local sur lequel travailler
 
 	if (rank == MASTER_NODE) {
 		prefixe = 0;
-		while (prefixe < nbPrefixe || !match) {
+		while (prefixe < nbPrefixe && !match) {
+			//printf("While index : %d\n", index);
 			MPI_Send((void*) &prefixe, 1, MPI_INT32_T, index, tag, MPI_COMM_WORLD);
 			++prefixe;
 			++index;
 			if (index == sizeMPI) {
 				while (index != 1) {
-					MPI_Recv((void*) &match, 1, MPI_C_BOOL, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv((void*) &temp, 1, MPI_C_BOOL, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, &tempStat);
 					--index;
+					if (temp) {
+						match = temp;
+						status = tempStat;
+						//printf("Match rank : %d\n", status.MPI_SOURCE);
+					}
 				}
 			}
 			if (match) {
-				int32_t value = INT_MAX;
-				MPI_Send((void*) &value, 1, MPI_INT32_T, MASTER_NODE, tag, MPI_COMM_WORLD);
+				int32_t value = -1;
+				index = 1;
+				for(index = 1; index < sizeMPI; ++index) {
+					if(index != status.MPI_SOURCE) {
+						//printf("index : %d\n", index);
+						MPI_Send((void*) &value, 1, MPI_INT32_T, index, tag, MPI_COMM_WORLD);
+					}
+				}
 			}
 		}
-		MPI_Recv((void*) word, sizeof(word), MPI_CHAR, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		//MPI_Send((void*) &prefixe, 1, MPI_INT, prefixe + 1, tag, MPI_COMM_WORLD);
 
 	} else {
 		while (!match) {
 			MPI_Recv((void*) &prefixe, 1, MPI_INT32_T, MASTER_NODE, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			if (prefixe == INT_MAX) {
+			if (prefixe == -1) {
 				return match;
 			}
 			decode(&env, prefixe, p, word);
 			if (!match) {
 				if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
 					match = true;
+					//printf("Match bruteforce : %d\n", rank);
 				}
 				MPI_Send((void*) &match, 1, MPI_C_BOOL, MASTER_NODE, tag, MPI_COMM_WORLD);
-				if (match) {
-					MPI_Send((void*) word, sizeof(word), MPI_CHAR, MASTER_NODE, tag, MPI_COMM_WORLD);
-				}
 			}
 		}
 	}
