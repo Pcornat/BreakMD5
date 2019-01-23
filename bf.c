@@ -62,9 +62,9 @@ void decode(struct bf* e, int c, int l, char word[]) {
 	//printf("%s\n",word);
 }
 
-bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
+bool bruteForce(uint32_t p, uint32_t l, char* motGagnant, unsigned char* monMD5) {
 	bool match;
-	int index, j, nbPrefixe, prefixe;
+	uint32_t j, nbPrefixe, prefixe;
 	struct bf env;
 
 	// l'initialisation de la table des symboles
@@ -75,11 +75,11 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 	printf("\n");
 
 	// on commence par calculer le nombre de prefixe
-	nbPrefixe = (int) pow(env.nbSymbole, p);
+	nbPrefixe = (uint32_t) pow(env.nbSymbole, p);
 	printf("\nLe nombre de prefixe : \t %d\n", nbPrefixe);
 	match = false;
 
-#pragma omp parallel shared(env, match, motGagnant) private(index)
+#pragma omp parallel shared(env, match, motGagnant)
 	{
 		char word[64]; // le mot local sur lequel travailler
 /*#pragma omp single
@@ -89,7 +89,7 @@ bool bruteForce(int p, int l, char* motGagnant, unsigned char* monMD5) {
 		for (prefixe = 0; prefixe < nbPrefixe; prefixe++) {
 			decode(&env, prefixe, p, word);
 			if (!match) {
-				if (bruteForcePrefixe(&env, p, (int) l, word, monMD5)) {
+				if (bruteForcePrefixe(&env, p, l, word, monMD5)) {
 					match = true;
 					// sprintf(motGagnant, "%s",word);
 				}
