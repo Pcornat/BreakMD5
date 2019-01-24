@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <sys/timeb.h>
 #include <openssl/md5.h>
-#include <mpi.h>
 
 #include "bf.h"
 

@@ -3,12 +3,10 @@ project(Code_Base C)
 
 set(CMAKE_C_STANDARD 99)
 
-find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 include_directories(.)
-include_directories(${MPI_C_INCLUDE_DIRS})
 
 set(OPTIONS_FLAGS
 		PRIVATE -Wall)
@@ -30,8 +28,8 @@ endif ()
 set(LINKER_OPTIONS
 		PRIVATE -Wl,--as-needed)
 
-set(OPTIONS_FLAGS ${OPTIONS_FLAGS} ${OpenMP_C_FLAGS} ${MPI_C_COMPILE_OPTIONS})
-set(LINKER_FLAGS ${OpenMP_C_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${MPI_C_LINK_FLAGS} ${MPI_C_LIBRARIES})
+set(OPTIONS_FLAGS ${OPTIONS_FLAGS} ${OpenMP_C_FLAGS})
+set(LINKER_FLAGS ${OpenMP_C_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY})
 
 set(SOURCES
 		bf.c

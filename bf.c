@@ -7,7 +7,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <omp.h>
 #include <openssl/md5.h>
 #include "bf.h"
 
@@ -85,7 +84,7 @@ bool bruteForce(uint32_t p, size_t l, char* motGagnant, unsigned char* monMD5) {
 /*#pragma omp single
 		printf("Nombre de threads : \t %d\n", omp_get_num_threads());
 		index = omp_get_thread_num();*/
-#pragma omp for
+#pragma omp for schedule(runtime)
 		for (prefixe = 0; prefixe < nbPrefixe; ++prefixe) {
 			decode(&env, prefixe, p, word);
 			if (!match) {
